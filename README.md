@@ -217,7 +217,7 @@ python3 hosttest/wavcompare.py a.wav b.wav
 - YM2203 SSG emulation: ymfm, by Aaron Giles; BSD-3-Clause.
 - See [c1943/LICENSE](c1943/LICENSE) for which file comes from where.
 - The ROM loader, the drawing in bands, the flash copy and the host harness follow pico-galagino.
-- The research of Liu (老劉) for an earlier RP2350 port of 1943 and 1943 Kai (hardware notes, timing and audio measurements, and captures from a real board) served as a reference; none of its code is used.
+- The research of [Liu Szuping](https://github.com/szuping) for an earlier RP2350 port of 1943 and 1943 Kai (hardware notes, timing and audio measurements, and captures from a real board) served as a reference;
 - miniz (inflate and CRC32): Rich Geldreich and others; see the licence text in [third_party/miniz/miniz.c](third_party/miniz/miniz.c).
 
 The project is distributed under the GNU General Public License v3.0; see [LICENSE](LICENSE).
