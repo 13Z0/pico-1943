@@ -14,7 +14,9 @@ It uses the same menu, display, audio and controller framework as this family of
 - Moon Cresta: [pico-mooncresta](https://github.com/PicoPlus-devel/pico-mooncresta)
 - Pac-Man, Galaga, 1942 and other games: [pico-galagino](https://github.com/PicoPlus-devel/pico-galagino)
 
-**The ROM sets are not included and must be supplied by the user.** They are copyright Capcom and are not distributed with this project. See [Game data](#game-data).
+**The ROM sets are not included and must be supplied by the user.** They are copyright Capcom and are not distributed with this project.
+
+**updateAll can download the ROM sets.** updateAll, the ROM set installer included in every release as `updateAll.exe` (Windows; a Python version for Linux and macOS is available in pico-bootLoader), downloads the two sets from a third-party database when they are not at hand and installs them on the SD card. The user remains responsible for holding the rights to the sets. See [Game data](#game-data).
 
 ***
 
@@ -60,6 +62,17 @@ Copy the sets to their folders in either form:
 - **The files, unzipped.** Subfolders named after the set or its clones (`1943`, `1943u`, ...), which unzipping commonly produces, are searched as well.
 
 Files are recognised by their size and CRC32, so their names do not matter, and a corrupt or different file is never loaded. The board creates the two folders on first start.
+
+**updateAll installs the sets.** `updateAll.exe`, a program for Windows 10 and 11, is included in every release of pico-1943, among the files at the end of the release page. It runs on a computer with the SD card inserted: it takes `1943.zip` and `1943kai.zip` from a folder of your choice, or downloads them when they are not there, and writes the sets, unzipped, into `/roms/arcade/1943` and `/roms/arcade/1943KAI`. Of 1943 it installs the US version, `1943u`, from a merged `1943.zip`, or from `1943u.zip` together with a split `1943.zip`. It is a single file and needs no installation. The program is not signed, so Windows may show "Windows protected your PC" the first time it is started; select **More info**, then **Run anyway**.
+
+1. Start `updateAll.exe`. It selects a removable drive by itself; under **SD card**, check that it is the card, or choose another.
+2. Under **Zip folder**, choose the folder with the MAME zips you already have, if any.
+3. Untick the sets that are not wanted. updateAll also installs the sets of other applications of this family, such as pico-galagino and pico-outrun; pico-1943 needs only the sets **1943: The Battle of Midway** and **1943 Kai: Midway Kaisen**, or one of them. The **Status** column shows which sets are already complete on the card.
+4. Select **Install**.
+
+By default, zips that are not in the zip folder are downloaded from [ArcadeROMsDB_MiSTer](https://github.com/zakk4223/ArcadeROMsDB_MiSTer), a third-party database that is not part of this project. The user is responsible for holding the rights to the ROM sets, whether they are supplied as zips or downloaded. To use only your own zips, untick **Download missing zips**.
+
+updateAll is maintained in [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader), whose SD-card archive carries it as well. The same installer is also available there as a Python script, `updateAll.py`, for Linux and macOS, and as a PowerShell script, `updateAll.ps1`. The [updateAll README](https://github.com/PicoPlus-devel/pico-bootLoader/blob/main/updateAll/README.md) describes all three and their options.
 
 When both games are on the card, a menu at start-up chooses one; it starts the game played last after 10 seconds without input. *Quit game* in the settings menu returns to it.
 
@@ -173,7 +186,7 @@ Every configuration must be built with `-2` (RP2350). Two options help when meas
 - `-DC1943_FRAME_STATS=1` prints over the serial console, every five seconds, the time a frame takes per part (main CPU, sound board, FM, SSG, drawing) and the time left before the display needs the next frame.
 - `-DC1943_FLASH_STORE_TEST=1` runs the game from the flash copy on a board with PSRAM as well, as a board without PSRAM does.
 
-The instruction loop of the Z80 core, `c1943/z80_ops.h`, is generated from MAME's opcode list `c1943/z80.lst` and is checked in, so the build does not need Python. After a change to the list, regenerate it with `tools/z80gen.py c1943/z80.lst c1943/z80_ops.h`. The built-in screensaver image (`DefaultSS444.c`, `DefaultSS555.c`) is made from a frame of the game by `tools/mkdefaultss.py`, and the screenshots of this README by `tools/screenshots.sh`; both take the pictures from your own ROM sets through the host harness.
+The instruction loop of the Z80 core, `c1943/z80_ops.h`, is generated from MAME's opcode list `c1943/z80.lst` and is checked in, so the build does not need Python. After a change to the list, regenerate it with `tools/z80gen.py c1943/z80.lst c1943/z80_ops.h`. The built-in screensaver image (`DefaultSS444.c`, `DefaultSS555.c`) is made from a frame of the game by `tools/mkdefaultss.py`, the screenshots of this README by `tools/screenshots.sh`, and the menu artwork of pico-bootLoader (`emu/assets/themes/0/1943.png` and `themes/1/1943.png`) by `tools/mkartwork.py` from the frames of `tools/capture_footage.sh`; all take the pictures from your own ROM sets through the host harness. `tools/mkupdateall.py` writes the two sets into pico-bootLoader's `updateAll/updateAll.json` from the ROM table, `c1943/c1943_sets.c`.
 
 ### Host test harness
 
@@ -217,8 +230,9 @@ python3 hosttest/wavcompare.py a.wav b.wav
 - YM2203 SSG emulation: ymfm, by Aaron Giles; BSD-3-Clause.
 - See [c1943/LICENSE](c1943/LICENSE) for which file comes from where.
 - The ROM loader, the drawing in bands, the flash copy and the host harness follow pico-galagino.
-- The research of [Liu Szuping](https://github.com/szuping) for an earlier RP2350 port of 1943 and 1943 Kai (hardware notes, timing and audio measurements, and captures from a real board) served as a reference;
+- The research of [Liu Szuping](https://github.com/szuping) for an earlier RP2350 port of 1943 and 1943 Kai (hardware notes, timing and audio measurements, and captures from a real board) served as a reference.
 - miniz (inflate and CRC32): Rich Geldreich and others; see the licence text in [third_party/miniz/miniz.c](third_party/miniz/miniz.c).
+- updateAll, the ROM set installer included in the releases as `updateAll.exe`: [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader/tree/main/updateAll), under the GNU General Public License v3.0, built with miniz and cJSON (MIT licence). Its source is in that repository.
 
 The project is distributed under the GNU General Public License v3.0; see [LICENSE](LICENSE).
 
