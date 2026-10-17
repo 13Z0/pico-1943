@@ -9,7 +9,7 @@ python3 hosttest/ppm2png.py hosttest/out/frame_02400.ppm
 ./hosttest/zex_host zexdoc.com zexall.com
 ```
 
-`c1943_host` reads the sets from a folder laid out as the SD card (`1943`, `1943KAI`) through the same loader as the firmware, runs the given number of frames with scripted input, writes every Nth frame as a 320 x 240 PPM in the chosen orientation (`--tate 0|1|2`) and the sound as a WAV file. `--tall` writes instead the 640 x 480 picture that a board with HSTX video output shows with *Tate mode* off. `--no-psram --flash FILE` runs the game from a simulated flash copy, as a board without PSRAM does. Every second it reports the time per frame of the main CPU, the sound board and the drawing, and what the machine did (the protection's questions and answers, bank switches, the cycles the CPUs spent waiting).
+`c1943_host` reads the sets from a folder laid out as the SD card (`1943`, `1943KAI`) through the same loader as the firmware, runs the given number of frames with scripted input, writes every Nth frame as a 320 x 240 PPM in the chosen orientation (`--tate 0|1|2`) and the sound as a WAV file. `--tall` writes instead the 640 x 480 picture that a board with HSTX video output shows with *Tate mode* off. `--no-psram --flash FILE` runs the game from a simulated flash copy, as a board without PSRAM does, and limits the ROM loader's scratch memory to what the SRAM heap of such a board has room for. Every second it reports the time per frame of the main CPU, the sound board and the drawing, and what the machine did (the protection's questions and answers, bank switches, the cycles the CPUs spent waiting).
 
 `zex_host` runs the ZEXDOC and ZEXALL instruction exercisers on the Z80 core; the test programs are not part of this repository.
 

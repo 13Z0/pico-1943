@@ -22,7 +22,8 @@
  *   --video FILE   every frame, as raw RGB24 (320x240, with --tall 640x480),
  *                  for ffmpeg -f rawvideo -pix_fmt rgb24 -s WxH -r 60 -i FILE
  *   --no-psram     run as a board without PSRAM: from the flash store (needs
- *                  --flash)
+ *                  --flash), the ROM loader's scratch memory limited to what
+ *                  the SRAM heap has room for
  *   --flash FILE   the flash store, kept in FILE between runs: a set not in it
  *                  is copied into it first, as the board does after its restart,
  *                  and runs from it. The simulated flash checks alignment and
@@ -160,7 +161,40 @@ static void host_close(void *ctx, void *f)
     fclose((FILE *)f);
 }
 
-static const c1943_io_t io = {NULL, host_list_dir, host_open, host_size, host_read_at, host_close, NULL, NULL};
+/* The loader's scratch memory, counted. On a board without PSRAM it comes from
+ * the SRAM heap, which had 38 KB free when the loader ran (HW_CONFIG 2), and
+ * malloc panics when it runs out; with --no-psram asking for more than
+ * SCRATCH_MAX in all ends the harness the same way. */
+#define SCRATCH_MAX (32 * 1024)
+static uint32_t scratch_now, scratch_peak, scratch_max = UINT32_MAX;
+
+static void *scratch_alloc(void *ctx, uint32_t size)
+{
+    (void)ctx;
+    if (scratch_now + size > scratch_max)
+    {
+        fprintf(stderr, "loader: %u bytes of scratch memory asked with %u in use: out of memory on the board\n",
+                size, scratch_now);
+        exit(3);
+    }
+    uint32_t *p = malloc(size + 8);
+    p[0] = size;
+    scratch_now += size;
+    if (scratch_now > scratch_peak)
+        scratch_peak = scratch_now;
+    return p + 2;
+}
+
+static void scratch_free(void *ctx, void *p)
+{
+    (void)ctx;
+    uint32_t *h = (uint32_t *)p - 2;
+    scratch_now -= h[0];
+    free(h);
+}
+
+static const c1943_io_t io = {NULL,         host_list_dir, host_open,     host_size,
+                              host_read_at, host_close,    scratch_alloc, scratch_free};
 
 static void *host_alloc(uint32_t size)
 {
@@ -451,6 +485,8 @@ int main(int argc, char **argv)
     c1943_init(tall ? C1943_FMT_RGB555 : C1943_FMT_RGB565, SAMPLERATE);
 
     /* what is on the "card" */
+    if (no_psram)
+        scratch_max = SCRATCH_MAX;
     char dir[1024];
     c1943_files_t found[C1943_SET_COUNT];
     for (int s = 0; s < C1943_SET_COUNT; s++)
@@ -553,6 +589,7 @@ int main(int argc, char **argv)
     printf("%s (%s, %s): loaded and converted in %.0f ms, started in %.1f ms; %u bytes kept in SRAM\n", si->title,
            si->variant_set[variant], si->variant_name[variant], t_load * 1000, (now_s() - t0) * 1000,
            c1943_fast_bytes());
+    printf("ROM loader: at most %u bytes of scratch memory\n", scratch_peak);
     (void)fast_total;
 
     mkdir(outdir, 0755);

@@ -19,7 +19,10 @@
  * The file system is reached through c1943_io_t, so the same code runs on
  * FatFs on the board and on stdio in the host harness. Large buffers come from
  * the allocator of c1943_io_t, never the stack: the inflate state alone is
- * about 11 KB.
+ * about 8 KB. Files are read CHUNK bytes at a time, never whole: on a board
+ * without PSRAM that allocator is the SRAM heap, which has no room for a 64 KB
+ * ROM. A loose file is read twice when it is loaded (once for its CRC, then
+ * into place); a zip entry is inflated straight into place.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +42,8 @@ typedef struct
 } job_t;
 
 #define BIT(i) ((c1943_files_t)1 << (i))
+
+#define CHUNK 4096 /* the read buffer */
 
 /* Index of a still-missing wanted file with this size and CRC, or -1. */
 static int wanted(const job_t *j, c1943_files_t found, uint32_t size, uint32_t crc)
@@ -77,6 +82,23 @@ static void tmp_free(const c1943_io_t *io, void *p)
 static uint32_t crc32_of(const uint8_t *p, size_t n)
 {
     return (uint32_t)mz_crc32(MZ_CRC32_INIT, p, n);
+}
+
+/* The CRC of the file's first len bytes, read through buf (CHUNK bytes).
+ * Returns 0 when the file is shorter or cannot be read. */
+static int crc32_file(const c1943_io_t *io, void *fh, uint32_t len, uint8_t *buf, uint32_t *crc)
+{
+    mz_ulong c = MZ_CRC32_INIT;
+    for (uint32_t ofs = 0; ofs < len;)
+    {
+        const uint32_t n = len - ofs < CHUNK ? len - ofs : CHUNK;
+        if (io->read_at(io->ctx, fh, ofs, buf, n) != (int)n)
+            return 0;
+        c = mz_crc32(c, buf, n);
+        ofs += n;
+    }
+    *crc = (uint32_t)c;
+    return 1;
 }
 
 static uint16_t le16(const uint8_t *p)
@@ -139,24 +161,38 @@ static int zip_extract(const c1943_io_t *io, void *fh, uint32_t lfh_ofs, int met
     if (method != 8)
         return 0;
 
-    uint8_t *comp = (uint8_t *)tmp_alloc(io, comp_size);
-    if (!comp)
-        return 0;
+    /* deflated: inflated into place, the compressed data read a chunk at a
+     * time */
+    uint8_t *in = (uint8_t *)tmp_alloc(io, CHUNK);
+    tinfl_decompressor *d = in ? (tinfl_decompressor *)tmp_alloc(io, sizeof(tinfl_decompressor)) : NULL;
     int ok = 0;
-    if (io->read_at(io->ctx, fh, data_ofs, comp, comp_size) == (int)comp_size)
+    if (d)
     {
-        tinfl_decompressor *d = (tinfl_decompressor *)tmp_alloc(io, sizeof(tinfl_decompressor));
-        if (d)
+        tinfl_init(d);
+        tinfl_status st = TINFL_STATUS_FAILED;
+        uint32_t in_ofs = 0, in_len = 0, in_pos = 0;
+        size_t out_pos = 0;
+        do
         {
-            tinfl_init(d);
-            size_t in_sz = comp_size, out_sz = size;
-            tinfl_status st =
-                tinfl_decompress(d, comp, &in_sz, dst, dst, &out_sz, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
-            ok = (st == TINFL_STATUS_DONE && out_sz == size);
-            tmp_free(io, d);
-        }
+            if (in_pos == in_len && in_ofs < comp_size)
+            {
+                in_len = comp_size - in_ofs < CHUNK ? comp_size - in_ofs : CHUNK;
+                if (io->read_at(io->ctx, fh, data_ofs + in_ofs, in, in_len) != (int)in_len)
+                    break;
+                in_ofs += in_len;
+                in_pos = 0;
+            }
+            size_t in_sz = in_len - in_pos, out_sz = size - out_pos;
+            const int more = in_ofs < comp_size ? TINFL_FLAG_HAS_MORE_INPUT : 0;
+            st = tinfl_decompress(d, in + in_pos, &in_sz, dst, dst + out_pos, &out_sz,
+                                  TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF | more);
+            in_pos += (uint32_t)in_sz;
+            out_pos += out_sz;
+        } while (st == TINFL_STATUS_NEEDS_MORE_INPUT);
+        ok = (st == TINFL_STATUS_DONE && out_pos == size);
     }
-    tmp_free(io, comp);
+    tmp_free(io, d);
+    tmp_free(io, in);
     return ok && crc32_of(dst, size) == crc;
 }
 
@@ -234,22 +270,21 @@ static c1943_files_t load_loose(const job_t *j, const c1943_io_t *io, const char
     void *fh = io->open(io->ctx, path);
     if (!fh)
         return found;
-    uint8_t *buf = (uint8_t *)tmp_alloc(io, size);
-    if (buf && io->read_at(io->ctx, fh, 0, buf, size) == (int)size)
+    uint8_t *buf = (uint8_t *)tmp_alloc(io, CHUNK);
+    uint32_t crc;
+    if (buf && crc32_file(io, fh, size, buf, &crc))
     {
-        int idx = wanted(j, found, size, crc32_of(buf, size));
-        if (idx >= 0)
+        int idx = wanted(j, found, size, crc);
+        if (idx >= 0 && !j->dest)
         {
-            uint8_t *dst = j->dest ? j->dest(j->arg, idx) : NULL;
-            if (dst)
-            {
-                memcpy(dst, buf, size);
+            found |= BIT(idx);
+        }
+        else if (idx >= 0)
+        {
+            /* read again, now that its place is known */
+            uint8_t *dst = j->dest(j->arg, idx);
+            if (dst && io->read_at(io->ctx, fh, 0, dst, size) == (int)size && crc32_of(dst, size) == crc)
                 found |= BIT(idx);
-            }
-            else if (!j->dest)
-            {
-                found |= BIT(idx);
-            }
         }
     }
     tmp_free(io, buf);

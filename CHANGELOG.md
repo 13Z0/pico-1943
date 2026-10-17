@@ -13,6 +13,10 @@ An emulator of the arcade games 1943: The Battle of Midway and 1943 Kai: Midway 
 
 # Changelog
 
+## v0.1.1
+
+- Fixed: on boards without PSRAM, such as a Pico 2 on the PicoNES PCB, start-up stopped with an "Out of memory" error when the ROM sets were on the SD card as unzipped files, the way updateAll installs them.
+
 ## v0.1
 
 Initial release.

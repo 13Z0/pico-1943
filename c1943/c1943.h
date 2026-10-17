@@ -100,9 +100,9 @@ typedef struct
     /* Returns the number of bytes read, or -1. */
     int (*read_at)(void *ctx, void *file, uint32_t offset, void *buf, uint32_t len);
     void (*close)(void *ctx, void *file);
-    /* The loader's scratch memory, all freed before it returns: a whole loose
-     * file (up to 64 KB), a compressed zip entry and the inflate state (about
-     * 11 KB). NULL for malloc and free. */
+    /* The loader's scratch memory, all freed before it returns: the list of a
+     * folder's files (6.5 KB), a 4 KB read buffer and the inflate state (about
+     * 8 KB), 19 KB at most. NULL for malloc and free. */
     void *(*alloc)(void *ctx, uint32_t size);
     void (*free)(void *ctx, void *p);
 } c1943_io_t;
