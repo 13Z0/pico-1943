@@ -13,6 +13,11 @@ An emulator of the arcade games 1943: The Battle of Midway and 1943 Kai: Midway 
 
 # Changelog
 
+## v0.1.2
+
+- **New setting: Video Clock Fix** (Pico 2 or PicoNES PCB, Adafruit Metro RP2350, Murmulator M2 and Olimex RP2040-PICO-PC). Turn it on if your TV or monitor shows small dots or lines in the picture with Overclock on. A USB controller can then no longer be used; use a NES, SNES or Wii controller instead.
+- On the Adafruit Fruit Jam and Feather RP2350 the Video Clock Fix is always on.
+
 ## v0.1.1
 
 - Fixed: on boards without PSRAM, such as a Pico 2 on the PicoNES PCB, start-up stopped with an "Out of memory" error when the ROM sets were on the SD card as unzipped files, the way updateAll installs them.
