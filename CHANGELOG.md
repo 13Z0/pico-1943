@@ -13,6 +13,10 @@ An emulator of the arcade games 1943: The Battle of Midway and 1943 Kai: Midway 
 
 # Changelog
 
+## v0.1.3
+
+- Fixed: on the Adafruit Fruit Jam and other boards with PIO-USB, USB controllers were often not found at start-up.
+
 ## v0.1.2
 
 - **New setting: Video Clock Fix** (Pico 2 or PicoNES PCB, Adafruit Metro RP2350, Murmulator M2 and Olimex RP2040-PICO-PC). Turn it on if your TV or monitor shows small dots or lines in the picture with Overclock on. A USB controller can then no longer be used; use a NES, SNES or Wii controller instead.
